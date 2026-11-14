@@ -98,3 +98,57 @@ data class PaymentEntity(
     val paymentDate: Long = System.currentTimeMillis(),
     val notes: String = ""
 )
+
+enum class PayoutStatus(val label: String) {
+    COMPLETED("Completed"),
+    PROCESSING("In Transit"),
+    SCHEDULED("Scheduled"),
+    FAILED("Failed"),
+    CANCELLED("Cancelled");
+
+    companion object {
+        fun fromString(value: String): PayoutStatus {
+            return entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: COMPLETED
+        }
+    }
+}
+
+enum class PayoutSpeed(val label: String, val feeEuro: Double, val etaDescription: String) {
+    WERO_INSTANT("Wero Instant Wire", 0.0, "Real-time (< 5s) via European Payments Initiative"),
+    INSTANT("Instant SEPA", 0.0, "Within minutes"),
+    STANDARD("Standard SEPA", 0.0, "1-2 business days");
+
+    companion object {
+        fun fromString(value: String): PayoutSpeed {
+            return entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: WERO_INSTANT
+        }
+    }
+}
+
+@Entity(tableName = "payouts")
+data class PayoutEntity(
+    @PrimaryKey
+    val id: String = "PO-${(System.currentTimeMillis() % 1000000).toString().padStart(6, '0')}",
+    val ownerId: String = "jurgen-westerveld",
+    val ownerName: String = "Jurgen Paul Westerveld",
+    val amount: Double,
+    val currency: String = "EUR",
+    val fee: Double = 0.0,
+    val netAmount: Double = amount - fee,
+    val status: String = PayoutStatus.COMPLETED.name,
+    val destinationBank: String = "ING Bank N.V.",
+    val destinationIban: String = "NL43 INGB 0006 3721 46",
+    val destinationBic: String = "INGBNL2A",
+    val payoutSpeed: String = PayoutSpeed.WERO_INSTANT.name,
+    val reference: String = "Owner Draw / Profit Distribution",
+    val initiatedAt: Long = System.currentTimeMillis(),
+    val estimatedArrivalAt: Long = System.currentTimeMillis(),
+    val completedAt: Long? = System.currentTimeMillis(),
+    val notes: String = ""
+) {
+    val payoutStatus: PayoutStatus
+        get() = PayoutStatus.fromString(status)
+
+    val speed: PayoutSpeed
+        get() = PayoutSpeed.fromString(payoutSpeed)
+}

@@ -12,6 +12,8 @@ import com.example.data.model.InvoiceStatus
 import com.example.data.model.SubscriptionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import androidx.room.TypeConverters
+import com.example.data.model.Order
 import kotlinx.coroutines.launch
 
 @Database(
@@ -19,16 +21,21 @@ import kotlinx.coroutines.launch
         ClientEntity::class,
         InvoiceEntity::class,
         SubscriptionEntity::class,
-        PaymentEntity::class
+        PaymentEntity::class,
+        PayoutEntity::class,
+        Order::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
+@TypeConverters(StringListConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun clientDao(): ClientDao
     abstract fun invoiceDao(): InvoiceDao
     abstract fun subscriptionDao(): SubscriptionDao
     abstract fun paymentDao(): PaymentDao
+    abstract fun payoutDao(): PayoutDao
+    abstract fun orderDao(): OrderDao
 
     companion object {
         @Volatile
@@ -58,6 +65,35 @@ abstract class AppDatabase : RoomDatabase() {
             INSTANCE?.let { database ->
                 scope.launch(Dispatchers.IO) {
                     populateInitialData(database)
+                }
+            }
+        }
+
+        override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+            super.onDestructiveMigration(db)
+            INSTANCE?.let { database ->
+                scope.launch(Dispatchers.IO) {
+                    populateInitialData(database)
+                }
+            }
+        }
+
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
+            INSTANCE?.let { database ->
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val cursor = db.query("SELECT COUNT(*) FROM clients")
+                        var count = 0
+                        if (cursor.moveToFirst()) {
+                            count = cursor.getInt(0)
+                        }
+                        cursor.close()
+                        if (count == 0) {
+                            populateInitialData(database)
+                        }
+                    } catch (_: Exception) {
+                    }
                 }
             }
         }
@@ -313,6 +349,96 @@ abstract class AppDatabase : RoomDatabase() {
             )
 
             paymentDao.insertPayments(listOf(p1))
+
+            // 5. Seed Owner Payouts for Jurgen Paul Westerveld
+            val payoutDao = database.payoutDao()
+            val po1 = PayoutEntity(
+                id = "PO-920194",
+                ownerId = "jurgen-westerveld",
+                ownerName = "Jurgen Paul Westerveld",
+                amount = 2300.00,
+                currency = "EUR",
+                fee = 0.0,
+                netAmount = 2300.00,
+                status = PayoutStatus.COMPLETED.name,
+                destinationBank = "ING Bank N.V.",
+                destinationIban = "NL43 INGB 0006 3721 46",
+                destinationBic = "INGBNL2A",
+                payoutSpeed = PayoutSpeed.INSTANT.name,
+                reference = "Bi-weekly Owner Profit Draw #41",
+                initiatedAt = now - (10 * dayMs),
+                estimatedArrivalAt = now - (10 * dayMs),
+                completedAt = now - (10 * dayMs),
+                notes = "Settled instantly via SEPA Instant Credit Transfer"
+            )
+
+            val po2 = PayoutEntity(
+                id = "PO-918402",
+                ownerId = "jurgen-westerveld",
+                ownerName = "Jurgen Paul Westerveld",
+                amount = 1850.00,
+                currency = "EUR",
+                fee = 0.0,
+                netAmount = 1850.00,
+                status = PayoutStatus.COMPLETED.name,
+                destinationBank = "ING Bank N.V.",
+                destinationIban = "NL43 INGB 0006 3721 46",
+                destinationBic = "INGBNL2A",
+                payoutSpeed = PayoutSpeed.STANDARD.name,
+                reference = "Q3 Merchant Settlement Distribution",
+                initiatedAt = now - (25 * dayMs),
+                estimatedArrivalAt = now - (24 * dayMs),
+                completedAt = now - (24 * dayMs),
+                notes = "Scheduled automated Friday payout batch"
+            )
+
+            val po3 = PayoutEntity(
+                id = "PO-923811",
+                ownerId = "jurgen-westerveld",
+                ownerName = "Jurgen Paul Westerveld",
+                amount = 950.00,
+                currency = "EUR",
+                fee = 0.0,
+                netAmount = 950.00,
+                status = PayoutStatus.COMPLETED.name,
+                destinationBank = "ING Bank N.V.",
+                destinationIban = "NL43 INGB 0006 3721 46",
+                destinationBic = "INGBNL2A",
+                payoutSpeed = PayoutSpeed.INSTANT.name,
+                reference = "Retainer & Subscription Commission",
+                initiatedAt = now - (4 * dayMs),
+                estimatedArrivalAt = now - (4 * dayMs),
+                completedAt = now - (4 * dayMs),
+                notes = "Direct bank transfer to primary business settlement account"
+            )
+
+            payoutDao.insertPayouts(listOf(po1, po2, po3))
+
+            // 6. Seed Orders
+            val orderDao = database.orderDao()
+            val o1 = Order(
+                id = "ORD-2026-001",
+                clientID = c1.id,
+                productIDs = listOf("PROD-CLOUD-HOST", "PROD-API-GATEWAY"),
+                amount = 369.00,
+                status = "PAID",
+                timestamp = now - (15 * dayMs),
+                shippingAddress = "Keizersgracht 421, 1016 EK Amsterdam",
+                customerEmail = "accounting@nordicgourmet.eu",
+                customerName = "Lars Lindqvist"
+            )
+            val o2 = Order(
+                id = "ORD-2026-002",
+                clientID = c2.id,
+                productIDs = listOf("PROD-SECURITY-AUDIT"),
+                amount = 1450.00,
+                status = "PAID",
+                timestamp = now - (3 * dayMs),
+                shippingAddress = "Witte de Withstraat 88, 3012 BT Rotterdam",
+                customerEmail = "billing@artisanpearl.nl",
+                customerName = "Sophie de Vries"
+            )
+            orderDao.insertOrders(listOf(o1, o2))
         }
     }
 }

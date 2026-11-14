@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account profile and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Client": {
+      "title": "Client Store",
+      "description": "Client profile, address, contact, payment terms and account status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "taxNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "country": { "type": "string" },
+        "currency": { "type": "string" },
+        "paymentTermsDays": { "type": "integer" },
+        "notes": { "type": "string" },
+        "accountStatus": { "type": "string" },
+        "totalInvoiced": { "type": "number" },
+        "totalPaid": { "type": "number" },
+        "outstandingBalance": { "type": "number" },
+        "openInvoicesCount": { "type": "integer" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "userId", "name"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Customer invoice with line items, tax, and status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientEmail": { "type": "string" },
+        "status": { "type": "string" },
+        "issueDate": { "type": "integer" },
+        "dueDate": { "type": "integer" },
+        "currency": { "type": "string" },
+        "itemsJson": { "type": "string" },
+        "subtotal": { "type": "number" },
+        "taxTotal": { "type": "number" },
+        "discountTotal": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "paymentTerms": { "type": "string" },
+        "notes": { "type": "string" },
+        "paidAt": { "type": "integer" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "userId", "clientId", "clientName", "totalAmount"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Recurring billing retainer agreement",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "planName": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "interval": { "type": "string" },
+        "status": { "type": "string" },
+        "nextBillingDate": { "type": "integer" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "userId", "clientId", "planName", "amount"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Invoice payment record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "invoiceId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "transactionRef": { "type": "string" },
+        "paymentDate": { "type": "integer" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "userId", "invoiceId", "amount"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Store catalog product or service item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "stockQuantity": { "type": "integer" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "Cart": {
+      "title": "Cart",
+      "description": "User shopping cart containing cart items",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "integer" },
+        "items": { "type": "array" }
+      },
+      "required": ["userId"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order with order items and linked invoice",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "items": { "type": "array" },
+        "invoiceId": { "type": "string" },
+        "shippingAddress": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerName": { "type": "string" }
+      },
+      "required": ["id", "userId", "totalAmount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile"
+    },
+    "/users/{userId}/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Clients belonging to user"
+    },
+    "/users/{userId}/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Invoices belonging to user"
+    },
+    "/users/{userId}/subscriptions/{subscriptionId}": {
+      "schema": "Subscription",
+      "description": "Subscriptions belonging to user"
+    },
+    "/users/{userId}/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payments belonging to user"
+    },
+    "/users/{userId}/cart/{cartId}": {
+      "schema": "Cart",
+      "description": "Active shopping cart belonging to user"
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Completed and in-flight orders belonging to user"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Store products catalog"
+    }
+  }
+}

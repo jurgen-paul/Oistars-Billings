@@ -2,6 +2,7 @@ package com.example
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.oistars.billings.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +26,7 @@ class ExampleRobolectricTest {
       com.example.data.local.ClientEntity(
         id = "CLI-1001",
         name = "Oistars Seafood E-Commerce B.V.",
-        contactPerson = "Jan-Peter Westerveld",
+        contactPerson = "Jurgen Paul Westerveld",
         email = "westerveldjp@gmail.com"
       ),
       com.example.data.local.ClientEntity(
@@ -118,4 +119,126 @@ class ExampleRobolectricTest {
     org.junit.Assert.assertTrue("PDF file should have positive size", pdfFile.length() > 0)
     assertEquals("Invoice_INV-2026-001.pdf", pdfFile.name)
   }
+
+  @Test
+  fun `verify order data class fields and firestore mapping`() {
+    val order = com.example.data.model.Order(
+      id = "ORD-99001",
+      clientID = "CLI-1001",
+      productIDs = listOf("PROD-CLOUD-HOST", "PROD-API-GATEWAY"),
+      amount = 369.00,
+      status = "PAID",
+      timestamp = 1772841600000L
+    )
+
+    assertEquals("ORD-99001", order.id)
+    assertEquals("CLI-1001", order.clientID)
+    assertEquals(2, order.productIDs.size)
+    assertEquals("PROD-CLOUD-HOST", order.productIDs[0])
+    assertEquals("PROD-API-GATEWAY", order.productIDs[1])
+    assertEquals(369.00, order.amount, 0.001)
+    assertEquals("PAID", order.status)
+    assertEquals(1772841600000L, order.timestamp)
+
+    // Test Firestore toMap and fromMap
+    val map = order.toMap()
+    assertEquals("CLI-1001", map["clientID"])
+    assertEquals(369.00, map["amount"])
+    assertEquals("PAID", map["status"])
+
+    val reconstructed = com.example.data.model.Order.fromMap(map, fallbackId = "FALLBACK")
+    assertEquals(order.id, reconstructed.id)
+    assertEquals(order.clientID, reconstructed.clientID)
+    assertEquals(order.productIDs, reconstructed.productIDs)
+    assertEquals(order.amount, reconstructed.amount, 0.001)
+    assertEquals(order.status, reconstructed.status)
+    assertEquals(order.timestamp, reconstructed.timestamp)
+  }
+
+  @Test
+  fun `verify room order dao and string list converter`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val inMemoryDb = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.local.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+
+    val orderDao = inMemoryDb.orderDao()
+
+    val order = com.example.data.model.Order(
+      id = "ORD-ROOM-001",
+      clientID = "CLI-1002",
+      productIDs = listOf("PROD-SECURITY-AUDIT", "PROD-TECH-RETAINER"),
+      amount = 2300.00,
+      status = "PENDING",
+      timestamp = System.currentTimeMillis()
+    )
+
+    orderDao.insertOrder(order)
+
+    val fetched = orderDao.getOrderById("ORD-ROOM-001")
+    org.junit.Assert.assertNotNull(fetched)
+    assertEquals("CLI-1002", fetched?.clientID)
+    assertEquals(2, fetched?.productIDs?.size)
+    assertEquals("PROD-SECURITY-AUDIT", fetched?.productIDs?.get(0))
+    assertEquals("PROD-TECH-RETAINER", fetched?.productIDs?.get(1))
+    assertEquals(2300.00, fetched?.amount ?: 0.0, 0.001)
+    assertEquals("PENDING", fetched?.status)
+
+    // Update status
+    val updated = order.copy(status = "COMPLETED")
+    orderDao.updateOrder(updated)
+    val fetchedUpdated = orderDao.getOrderById("ORD-ROOM-001")
+    assertEquals("COMPLETED", fetchedUpdated?.status)
+
+    inMemoryDb.close()
+  }
+
+  @Test
+  fun `verify revenue chart point metrics and average order value`() {
+    val point = com.example.ui.components.RevenueChartPoint(
+      monthShort = "Oct",
+      monthFull = "October 2026",
+      orderRevenue = 4500.00,
+      billedRevenue = 6200.00,
+      totalRevenue = 10700.00,
+      orderCount = 5,
+      paidOrderCount = 4
+    )
+
+    assertEquals("Oct", point.monthShort)
+    assertEquals(4500.00, point.orderRevenue, 0.001)
+    assertEquals(6200.00, point.billedRevenue, 0.001)
+    assertEquals(10700.00, point.totalRevenue, 0.001)
+    assertEquals(5, point.orderCount)
+    assertEquals(900.00, point.averageOrderValue, 0.001)
+  }
+
+  @Test
+  fun `verify order realtime event and status change notification payload`() {
+    val initialOrder = com.example.data.model.Order(
+      id = "ORD-STATUS-01",
+      clientID = "CLI-1001",
+      productIDs = listOf("PROD-CLOUD-HOST"),
+      amount = 249.00,
+      status = "PENDING",
+      timestamp = System.currentTimeMillis()
+    )
+
+    val updatedOrder = initialOrder.copy(status = "PAID")
+
+    val event = com.example.data.repository.OrderRepository.OrderRealtimeEvent(
+      allOrders = listOf(updatedOrder),
+      modifiedOrders = listOf(updatedOrder),
+      changeDescription = "Order #ORD-STATUS-01 status updated to PAID"
+    )
+
+    assertEquals(1, event.allOrders.size)
+    assertEquals(1, event.modifiedOrders.size)
+    assertEquals("PAID", event.modifiedOrders.first().status)
+    assertEquals("Order #ORD-STATUS-01 status updated to PAID", event.changeDescription)
+  }
 }
+
+
+
